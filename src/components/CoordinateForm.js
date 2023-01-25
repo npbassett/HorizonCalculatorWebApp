@@ -11,13 +11,21 @@ const config = {
 }
 const math = create(all, config)
 
+const EARTH_RADIUS = 6371000
+
 class CoordinateForm extends Component {
   constructor(props) {
     super(props);
-    this.state = {latitude : '', longitude: '', data: null};
+    this.state = {
+      latitude : '',
+      longitude: '',
+      elevationData: [],
+      horizonProfile: []
+    };
 
     this.handleChange = this.handleChange.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
+    this.calculateHorizonProfile = this.calculateHorizonProfile.bind(this);
   }
 
   getLatLon(alpha, gamma) {
@@ -33,13 +41,42 @@ class CoordinateForm extends Component {
     return [latitude, longitude];
   }
 
+  getHorizonAngle(elevation, alpha, gamma) {
+    return Math.atan((1. / Math.tan(gamma)) -
+      (((EARTH_RADIUS + 2.) / (EARTH_RADIUS + elevation)) / Math.sin(gamma))) *
+      (180. / Math.PI);
+  }
+
+  async calculateHorizonProfile() {
+    let idx = 0;
+    let horizonProfileArr = [];
+    for (let az = 0; az <= 2 * Math.PI; az += 2 * Math.PI / 9.) {
+      let maxHorizonAngle = Number.NEGATIVE_INFINITY;
+      for (let r = 0.005; r < 0.05; r += 0.005) {
+        let elevationPoint = this.state.elevationData[idx];
+        let horizonAngle = this.getHorizonAngle(elevationPoint.elevation, az, r);
+        if (horizonAngle > maxHorizonAngle) {
+          maxHorizonAngle = horizonAngle;
+        }
+        idx++;
+      }
+      horizonProfileArr.push({
+        azimuth : az * (180. / Math.PI),
+        angle : maxHorizonAngle
+      });
+    }
+    this.setState({horizonProfile : horizonProfileArr}, () => {
+      console.log(this.state.horizonProfile)
+    });
+  }
+
   constructAPIRequest() {
     let apiRequestArray = []
-    for (let az = 0; az <= 2 * Math.PI; az += 2 * Math.PI / 36.) {
+    for (let az = 0; az <= 2 * Math.PI; az += 2 * Math.PI / 9.) {
       for (let r = 0.005; r <= 0.05; r += 0.005) {
         let coordinate = this.getLatLon(az, r);
-        apiRequestArray.push(coordinate[0].toFixed(2), ",",
-          coordinate[1].toFixed(2), "|");
+        apiRequestArray.push(coordinate[0].toFixed(1), ",",
+          coordinate[1].toFixed(1), "|");
       }
     }
     apiRequestArray.pop();
@@ -48,28 +85,27 @@ class CoordinateForm extends Component {
   }
 
   async fetchElevation() {
-    this.constructAPIRequest();
-    fetch('https://api.open-elevation.com/api/v1/lookup?locations=' +
+    await fetch('https://api.open-elevation.com/api/v1/lookup?locations=' +
       this.constructAPIRequest())
       .then((response) => response.json())
       .then((data) => {
-        console.log(data.results);
-        alert('latitude: ' + data.results[0].latitude + ', longitude: ' +
-          data.results[0].longitude + ', elevation: ' +
-          data.results[0].elevation)
+        this.setState({elevationData : data.results});
+        alert('Successfully retrieved elevation data.');
       })
-      .catch((error) =>
-        alert('Error fetching elevation data!')
-      );
+      .catch((error) => {
+        console.log(error);
+        alert('Error fetching elevation data!');
+      })
   }
 
   handleChange(event) {
     this.setState({[event.target.name] : event.target.value});
   }
 
-  handleSubmit(event) {
-    this.fetchElevation();
+  async handleSubmit(event) {
     event.preventDefault();
+    await this.fetchElevation();
+    await this.calculateHorizonProfile();
   }
 
   render() {
