@@ -18,10 +18,7 @@ function App() {
         Horizon Calculator
       </h1>
       Calculate the apparent horizon from a given location
-      <p>
-        <CoordinateForm />
-      </p>
-      <p>
+      <CoordinateForm />
         <ResponsiveContainer width='100%' height={500}>
           <LineChart
             width={600}
@@ -40,7 +37,6 @@ function App() {
             />
           </LineChart>
         </ResponsiveContainer>
-      </p>
     </div>
   );
 }
