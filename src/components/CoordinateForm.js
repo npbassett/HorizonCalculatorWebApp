@@ -3,10 +3,24 @@ import React, { Component } from 'react';
 class CoordinateForm extends Component {
   constructor(props) {
     super(props);
-    this.state = {latitude : '', longitude: ''};
+    this.state = {latitude : '', longitude: '', data: null};
 
     this.handleChange = this.handleChange.bind(this);
     this.handleSubmit = this.handleSubmit.bind(this);
+  }
+
+  async fetchElevation() {
+    fetch('https://api.open-elevation.com/api/v1/lookup?locations=' +
+      this.state.latitude + ',' + this.state.longitude)
+      .then((response) => response.json())
+      .then((data) => {
+        alert('latitude: ' + data.results[0].latitude + ', longitude: ' +
+          data.results[0].longitude + ', elevation: ' +
+          data.results[0].elevation)
+      })
+      .catch((error) =>
+        alert('Error fetching elevation data!')
+      );
   }
 
   handleChange(event) {
@@ -14,8 +28,7 @@ class CoordinateForm extends Component {
   }
 
   handleSubmit(event) {
-    alert('A coordinate was submitted: (' + this.state.latitude +
-      ', ' + this.state.longitude + ')');
+    this.fetchElevation();
     event.preventDefault();
   }
 
