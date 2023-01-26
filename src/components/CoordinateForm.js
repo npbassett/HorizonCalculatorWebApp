@@ -28,55 +28,65 @@ class CoordinateForm extends Component {
     this.calculateHorizonProfile = this.calculateHorizonProfile.bind(this);
   }
 
-  getLatLon(alpha, gamma) {
+  getLatLon(alphaRad, gammaRad) {
     let theta0 = (Math.PI / 2.) - (this.state.latitude * (Math.PI / 180.));
     let phi0 = this.state.longitude * (Math.PI / 180.);
-    let theta = Math.acos((Math.cos(theta0) * Math.cos(gamma)) +
-      (Math.cos(alpha) * Math.sin(theta0) * Math.sin(gamma)));
-    let phi = math.multiply(math.add(Math.sin(theta0) * Math.cos(gamma), 
-      math.multiply(math.i, Math.sin(alpha) * Math.sin(gamma))),
+    let theta = Math.acos((Math.cos(theta0) * Math.cos(gammaRad)) +
+      (Math.cos(alphaRad) * Math.sin(theta0) * Math.sin(gammaRad)));
+    let phi = math.multiply(math.add(Math.sin(theta0) * Math.cos(gammaRad), 
+      math.multiply(math.i, Math.sin(alphaRad) * Math.sin(gammaRad))),
       math.exp(math.multiply(math.i, phi0))).toPolar().phi;
     let latitude = 90. - ((180. / Math.PI) * theta);
     let longitude = (180. / Math.PI) * phi;
     return [latitude, longitude];
   }
 
-  getHorizonAngle(elevation, alpha, gamma) {
-    return Math.atan((1. / Math.tan(gamma)) -
-      (((EARTH_RADIUS + 2.) / (EARTH_RADIUS + elevation)) / Math.sin(gamma))) *
+  getHorizonAngle(elevation, alphaRad, gammaRad) {
+    let observerHeight = this.state.elevationData[0].elevation + 2.;
+    return Math.atan((1. / Math.tan(gammaRad)) -
+      (((EARTH_RADIUS + observerHeight) / (EARTH_RADIUS + elevation)) / Math.sin(gammaRad))) *
       (180. / Math.PI);
   }
 
   async calculateHorizonProfile() {
-    let idx = 0;
+    let idx = 1; /*idx 0 refers to the location of the observer*/
     let horizonProfileArr = [];
-    for (let az = 0; az <= 2 * Math.PI; az += 2 * Math.PI / 9.) {
+    for (let alphaDeg = 0; alphaDeg <= 360.; alphaDeg += 360. / 9.) {
       let maxHorizonAngle = Number.NEGATIVE_INFINITY;
-      for (let r = 0.005; r < 0.05; r += 0.005) {
+      for (let gammaDeg = 0.005; gammaDeg < 0.05; gammaDeg += 0.005) {
         let elevationPoint = this.state.elevationData[idx];
-        let horizonAngle = this.getHorizonAngle(elevationPoint.elevation, az, r);
+        let alphaRad = alphaDeg * (Math.PI / 180.);        
+        let gammaRad = gammaDeg * (Math.PI / 180.);
+        let horizonAngle = this.getHorizonAngle(
+          elevationPoint.elevation,
+          alphaRad,
+          gammaRad
+        );
         if (horizonAngle > maxHorizonAngle) {
           maxHorizonAngle = horizonAngle;
         }
         idx++;
       }
       horizonProfileArr.push({
-        azimuth : az * (180. / Math.PI),
+        azimuth : alphaDeg,
         angle : maxHorizonAngle
       });
     }
     this.setState({horizonProfile : horizonProfileArr}, () => {
+      console.log('Calculated horizon profile:')
       console.log(this.state.horizonProfile)
     });
   }
 
   constructAPIRequest() {
-    let apiRequestArray = []
-    for (let az = 0; az <= 2 * Math.PI; az += 2 * Math.PI / 9.) {
-      for (let r = 0.005; r <= 0.05; r += 0.005) {
-        let coordinate = this.getLatLon(az, r);
-        apiRequestArray.push(coordinate[0].toFixed(1), ",",
-          coordinate[1].toFixed(1), "|");
+    let apiRequestArray = [this.state.latitude, ",", this.state.longitude, "|"]
+    for (let alphaDeg = 0; alphaDeg <= 360.; alphaDeg += 360. / 9.) {
+      for (let gammaDeg = 0.005; gammaDeg < 0.05; gammaDeg += 0.005) {
+        let alphaRad = alphaDeg * (Math.PI / 180.);
+        let gammaRad = gammaDeg * (Math.PI / 180.);
+        let coordinate = this.getLatLon(alphaRad, gammaRad);
+        apiRequestArray.push(coordinate[0].toFixed(2), ",",
+          coordinate[1].toFixed(2), "|");
       }
     }
     apiRequestArray.pop();
