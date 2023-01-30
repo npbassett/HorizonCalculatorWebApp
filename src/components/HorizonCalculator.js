@@ -42,7 +42,6 @@ class HorizonCalculator extends Component {
   handleSubmit = async (event) => {
     event.preventDefault();
     await this.fetchElevation();
-    await this.calculateHorizonProfile();
   }
 
   render() {
@@ -86,7 +85,11 @@ class HorizonCalculator extends Component {
     })
       .then((response) => response.json())
       .then((data) => {
-        this.setState({elevationData : data.results});
+        console.log('Elevation Data:');
+        console.log(data.results);
+        this.setState({elevationData : data.results}, () => {
+          this.calculateHorizonProfile();
+        });
       })
       .catch((error) => {
         console.log(error);
@@ -100,7 +103,7 @@ class HorizonCalculator extends Component {
       "longitude" : Number(this.state.longitude)
     }]};
     for (let alphaDeg = 0; alphaDeg <= 360.; alphaDeg += ALPHA_RESOLUTION) {
-      for (let gammaDeg = GAMMA_MIN; gammaDeg <= GAMMA_MAX; gammaDeg += GAMMA_RESOLUTION) {
+      for (let gammaDeg = GAMMA_MIN; gammaDeg < GAMMA_MAX; gammaDeg += GAMMA_RESOLUTION) {
         let alphaRad = alphaDeg * (Math.PI / 180.);
         let gammaRad = gammaDeg * (Math.PI / 180.);
         let coordinate = this.getLatLon(alphaRad, gammaRad);
@@ -120,6 +123,7 @@ class HorizonCalculator extends Component {
       let maxHorizonAngle = Number.NEGATIVE_INFINITY;
       for (let gammaDeg = GAMMA_MIN; gammaDeg < GAMMA_MAX; gammaDeg += GAMMA_RESOLUTION) {
         let elevationPoint = this.state.elevationData[idx];
+        console.log(idx, elevationPoint);
         let alphaRad = alphaDeg * (Math.PI / 180.);        
         let gammaRad = gammaDeg * (Math.PI / 180.);
         let horizonAngle = this.getHorizonAngle(
