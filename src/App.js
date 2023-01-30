@@ -7,7 +7,9 @@ function App() {
       <h1>
         Horizon Calculator
       </h1>
-      Calculate the apparent horizon from a given location
+      Created by Neil Bassett
+      (using <a href="https://open-elevation.com/">Open Elevation API</a>)
+      <br/><br/>
       <HorizonCalculator />
     </div>
   );
