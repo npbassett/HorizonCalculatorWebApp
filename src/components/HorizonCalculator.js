@@ -14,7 +14,11 @@ const config = {
 }
 const math = create(all, config)
 
-const EARTH_RADIUS = 6371000
+const EARTH_RADIUS = 6371000;
+const ALPHA_RESOLUTION = 360. / 18.;
+const GAMMA_MIN = 0.005;
+const GAMMA_MAX = 0.05;
+const GAMMA_RESOLUTION = 0.0025;
 
 class HorizonCalculator extends Component {
   constructor(props) {
@@ -72,12 +76,17 @@ class HorizonCalculator extends Component {
   }
 
   async fetchElevation() {
-    await fetch('https://api.open-elevation.com/api/v1/lookup?locations=' +
-      this.constructAPIRequest())
+    await fetch('https://api.open-elevation.com/api/v1/lookup', {
+      method : 'POST',
+      headers : {
+        'Accept' : 'application/json',
+        'Content-Type': 'application/json'
+      },
+      body : this.constructAPIRequest()
+    })
       .then((response) => response.json())
       .then((data) => {
         this.setState({elevationData : data.results});
-        alert('Successfully retrieved elevation data.');
       })
       .catch((error) => {
         console.log(error);
@@ -86,27 +95,30 @@ class HorizonCalculator extends Component {
   }
 
   constructAPIRequest() {
-    let apiRequestArray = [this.state.latitude, ",", this.state.longitude, "|"]
-    for (let alphaDeg = 0; alphaDeg <= 360.; alphaDeg += 360. / 9.) {
-      for (let gammaDeg = 0.005; gammaDeg < 0.05; gammaDeg += 0.005) {
+    let apiRequest = {"locations" : [{
+      "latitude" : Number(this.state.latitude),
+      "longitude" : Number(this.state.longitude)
+    }]};
+    for (let alphaDeg = 0; alphaDeg <= 360.; alphaDeg += ALPHA_RESOLUTION) {
+      for (let gammaDeg = GAMMA_MIN; gammaDeg <= GAMMA_MAX; gammaDeg += GAMMA_RESOLUTION) {
         let alphaRad = alphaDeg * (Math.PI / 180.);
         let gammaRad = gammaDeg * (Math.PI / 180.);
         let coordinate = this.getLatLon(alphaRad, gammaRad);
-        apiRequestArray.push(coordinate[0].toFixed(2), ",",
-          coordinate[1].toFixed(2), "|");
+        apiRequest.locations.push({
+          "latitude" : coordinate[0],
+          "longitude" : coordinate[1]
+        })
       }
     }
-    apiRequestArray.pop();
-    let apiRequestString = apiRequestArray.join("");
-    return apiRequestString;
+    return JSON.stringify(apiRequest);
   }
 
   async calculateHorizonProfile() {
     let idx = 1; /*idx 0 refers to the location of the observer*/
     let horizonProfileArr = [];
-    for (let alphaDeg = 0; alphaDeg <= 360.; alphaDeg += 360. / 9.) {
+    for (let alphaDeg = 0; alphaDeg <= 360.; alphaDeg += ALPHA_RESOLUTION) {
       let maxHorizonAngle = Number.NEGATIVE_INFINITY;
-      for (let gammaDeg = 0.005; gammaDeg < 0.05; gammaDeg += 0.005) {
+      for (let gammaDeg = GAMMA_MIN; gammaDeg < GAMMA_MAX; gammaDeg += GAMMA_RESOLUTION) {
         let elevationPoint = this.state.elevationData[idx];
         let alphaRad = alphaDeg * (Math.PI / 180.);        
         let gammaRad = gammaDeg * (Math.PI / 180.);
