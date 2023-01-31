@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import CoordinateForm from './CoordinateForm.js';
+import LoadingWheel, { FetchState } from './LoadingWheel.js';
 import { LineChart, Line, CartesianGrid, XAxis,
   YAxis, ResponsiveContainer } from 'recharts';
 import { create, all } from 'mathjs'
@@ -24,8 +25,9 @@ class HorizonCalculator extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      latitude : '',
+      latitude: '',
       longitude: '',
+      fetchState: FetchState.hasNotFetched,
       elevationData: [],
       horizonProfile: [{azimuth : 0, horizon : 0}, {azimuth : 360, horizon : 0}]
     };
@@ -52,6 +54,9 @@ class HorizonCalculator extends Component {
           onLongitudeChange={this.handleLongitudeChange}
           onSubmit={this.handleSubmit}
         />
+        <p>
+          <LoadingWheel fetchState={this.state.fetchState}/>
+        </p>
         <ResponsiveContainer width='100%' height={500}>
           <LineChart
             width={600}
@@ -75,6 +80,7 @@ class HorizonCalculator extends Component {
   }
 
   async fetchElevation() {
+    this.setState({fetchState : FetchState.isFetching});
     await fetch('https://api.open-elevation.com/api/v1/lookup', {
       method : 'POST',
       headers : {
@@ -87,13 +93,16 @@ class HorizonCalculator extends Component {
       .then((data) => {
         console.log('Elevation Data:');
         console.log(data.results);
-        this.setState({elevationData : data.results}, () => {
-          this.calculateHorizonProfile();
+        this.setState({
+          elevationData : data.results,
+          fetchState : FetchState.hasFetched}, () => {
+            this.calculateHorizonProfile();
         });
       })
       .catch((error) => {
+        this.setState({fetchState : FetchState.hasFetchedWithError});
         console.log(error);
-        alert('Error fetching elevation data!');
+        // alert('Error fetching elevation data!');
       })
   }
 
